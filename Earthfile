@@ -40,8 +40,9 @@ docker:
     && apt install -y fakechroot \
     && rm -rf /var/lib/apt/lists/*
   COPY LICENSE /usr/share/doc/action-mergeusr/copyright
+  ARG NATIVEARCH
   ARG TARGETARCH
-  COPY (+build/action-mergeusr --GOARCH=$TARGETARCH) /usr/local/bin/action-mergeusr
+  COPY (+build/action-mergeusr --platform=linux/${NATIVEARCH} --GOARCH=$TARGETARCH) /usr/local/bin/action-mergeusr
   ENTRYPOINT ["/usr/local/bin/action-mergeusr"]
   ARG VERSION=dev
   SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:${VERSION}
