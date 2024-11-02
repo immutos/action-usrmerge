@@ -32,6 +32,7 @@ lint:
   RUN golangci-lint run --timeout 5m ./...
 
 test:
+  FROM golang:1.22-bookworm
   COPY go.mod go.sum ./
   RUN go mod download
   COPY . .
