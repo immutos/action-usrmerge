@@ -1,1 +1,1 @@
-# action-usrmerge
+# action-mergeusr
