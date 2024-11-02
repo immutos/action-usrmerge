@@ -1,14 +1,18 @@
 VERSION 0.8
-FROM golang:1.22-bookworm
-WORKDIR /workspace
 
 all:
   ARG VERSION=dev
   BUILD --platform=linux/amd64 --platform=linux/arm64 --platform=linux/riscv64 +docker
 
 build:
+  FROM golang:1.22-bookworm
+  WORKDIR /workspace
+  RUN apt update
+  RUN apt install -y gcc-aarch64-linux-gnu gcc-riscv64-linux-gnu gcc-x86-64-linux-gnu
   ARG GOOS=linux
   ARG GOARCH=amd64
+  ENV TARGET_TRIPLET=$(echo "$GOARCH" | sed -e 's/amd64/x86_64-linux-gnu/' -e 's/arm64/aarch64-linux-gnu/' -e 's/riscv64/riscv64-linux-gnu/')
+  ENV CC=$(echo "$TARGET_TRIPLET-gcc")
   COPY go.mod go.sum ./
   RUN go mod download
   COPY . .
@@ -42,7 +46,7 @@ docker:
   COPY LICENSE /usr/share/doc/action-mergeusr/copyright
   ARG NATIVEARCH
   ARG TARGETARCH
-  COPY (+build/action-mergeusr --platform=linux/${NATIVEARCH} --GOARCH=$TARGETARCH) /usr/local/bin/action-mergeusr
+  COPY --platform=linux/$NATIVEARCH (+build/action-mergeusr --GOARCH=$TARGETARCH) /usr/local/bin/action-mergeusr
   ENTRYPOINT ["/usr/local/bin/action-mergeusr"]
   ARG VERSION=dev
   SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:${VERSION}
