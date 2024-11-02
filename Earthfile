@@ -28,13 +28,10 @@ lint:
   RUN golangci-lint run --timeout 5m ./...
 
 test:
-  FROM +tools
-  ARG TARGETARCH
-  COPY +build/immutos ./dist/immutos-linux-${TARGETARCH}
-  COPY . ./
-  WITH DOCKER
-    RUN go test -coverprofile=coverage.out -v ./...
-  END
+  COPY go.mod go.sum ./
+  RUN go mod download
+  COPY . .
+  RUN go test -coverprofile=coverage.out -v ./...
   SAVE ARTIFACT ./coverage.out AS LOCAL coverage.out
 
 docker:
