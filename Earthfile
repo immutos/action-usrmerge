@@ -2,16 +2,16 @@ VERSION 0.8
 
 all:
   ARG VERSION=dev
-  BUILD --platform=linux/amd64 --platform=linux/arm64 --platform=linux/riscv64 +docker
+  BUILD --platform=linux/amd64 --platform=linux/arm64 +docker
 
 build:
   FROM golang:1.22-bookworm
   WORKDIR /workspace
   RUN apt update
-  RUN apt install -y gcc-aarch64-linux-gnu gcc-riscv64-linux-gnu gcc-x86-64-linux-gnu
+  RUN apt install -y gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu
   ARG GOOS=linux
   ARG GOARCH=amd64
-  ENV TARGET_TRIPLET=$(echo "$GOARCH" | sed -e 's/amd64/x86_64-linux-gnu/' -e 's/arm64/aarch64-linux-gnu/' -e 's/riscv64/riscv64-linux-gnu/')
+  ENV TARGET_TRIPLET=$(echo "$GOARCH" | sed -e 's/amd64/x86_64-linux-gnu/' -e 's/arm64/aarch64-linux-gnu/')
   ENV CC=$(echo "$TARGET_TRIPLET-gcc")
   COPY go.mod go.sum ./
   RUN go mod download
@@ -40,7 +40,7 @@ test:
   SAVE ARTIFACT ./coverage.out AS LOCAL coverage.out
 
 docker:
-  FROM debian:trixie-slim
+  FROM debian:bookworm-slim
   RUN apt update \
     && apt install -y fakechroot \
     && rm -rf /var/lib/apt/lists/*
@@ -50,5 +50,5 @@ docker:
   COPY --platform=linux/$NATIVEARCH (+build/action-mergeusr --GOARCH=$TARGETARCH) /usr/local/bin/action-mergeusr
   ENTRYPOINT ["/usr/local/bin/action-mergeusr"]
   ARG VERSION=dev
-  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:${VERSION}
-  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:latest
+  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:${VERSION}-bookworm
+  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:bookworm
