@@ -50,5 +50,5 @@ docker:
   COPY --platform=linux/$NATIVEARCH (+build/action-mergeusr --GOARCH=$TARGETARCH) /usr/local/bin/action-mergeusr
   ENTRYPOINT ["/usr/local/bin/action-mergeusr"]
   ARG VERSION=dev
-  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:${VERSION}-bookworm
-  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:bookworm
+  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:${VERSION}
+  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:latest
