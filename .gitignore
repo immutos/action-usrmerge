@@ -3,7 +3,7 @@
 #
 # Binaries for programs and plugins
 /dist/
-action-mergeusr
+action-usrmerge
 *.exe
 *.exe~
 *.dll

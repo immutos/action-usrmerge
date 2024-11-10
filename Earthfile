@@ -2,13 +2,15 @@ VERSION 0.8
 
 all:
   ARG VERSION=dev
-  BUILD --platform=linux/amd64 --platform=linux/arm64 +docker
+  BUILD --platform=linux/amd64 --platform=linux/arm64 +docker-bookworm
+  BUILD --platform=linux/amd64 --platform=linux/arm64 --platform=linux/riscv64 +docker-trixie
 
-build:
-  FROM golang:1.22-bookworm
+build-bookworm:
+  FROM debian:bookworm-slim
   WORKDIR /workspace
   RUN apt update
-  RUN apt install -y gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu
+  RUN apt install -y ca-certificates golang-go \
+    gcc-x86-64-linux-gnu gcc-aarch64-linux-gnu
   ARG GOOS=linux
   ARG GOARCH=amd64
   ENV TARGET_TRIPLET=$(echo "$GOARCH" | sed -e 's/amd64/x86_64-linux-gnu/' -e 's/arm64/aarch64-linux-gnu/')
@@ -16,8 +18,24 @@ build:
   COPY go.mod go.sum ./
   RUN go mod download
   COPY . .
-  RUN CGO_ENABLED=1 go build --ldflags '-linkmode external' -o action-mergeusr main.go
-  SAVE ARTIFACT ./action-mergeusr AS LOCAL dist/action-mergeusr-${GOOS}-${GOARCH}
+  RUN CGO_ENABLED=1 go build --ldflags '-linkmode external' -o action-usrmerge main.go
+  SAVE ARTIFACT ./action-usrmerge AS LOCAL dist/action-usrmerge-${GOOS}-${GOARCH}
+
+build-trixie:
+  FROM debian:trixie-slim
+  WORKDIR /workspace
+  RUN apt update
+  RUN apt install -y ca-certificates golang-go \
+    gcc-x86-64-linux-gnu gcc-aarch64-linux-gnu gcc-riscv64-linux-gnu
+  ARG GOOS=linux
+  ARG GOARCH=amd64
+  ENV TARGET_TRIPLET=$(echo "$GOARCH" | sed -e 's/amd64/x86_64-linux-gnu/' -e 's/arm64/aarch64-linux-gnu/' -e 's/riscv64/riscv64-linux-gnu/')
+  ENV CC=$(echo "$TARGET_TRIPLET-gcc")
+  COPY go.mod go.sum ./
+  RUN go mod download
+  COPY . .
+  RUN CGO_ENABLED=1 go build --ldflags '-linkmode external' -o action-usrmerge main.go
+  SAVE ARTIFACT ./action-usrmerge AS LOCAL dist/action-usrmerge-${GOOS}-${GOARCH}
 
 tidy:
   LOCALLY
@@ -39,16 +57,30 @@ test:
   RUN go test -coverprofile=coverage.out -v ./...
   SAVE ARTIFACT ./coverage.out AS LOCAL coverage.out
 
-docker:
+docker-bookworm:
   FROM debian:bookworm-slim
   RUN apt update \
     && apt install -y fakechroot \
     && rm -rf /var/lib/apt/lists/*
-  COPY LICENSE /usr/share/doc/action-mergeusr/copyright
+  COPY LICENSE /usr/share/doc/action-usrmerge/copyright
   ARG NATIVEARCH
   ARG TARGETARCH
-  COPY --platform=linux/$NATIVEARCH (+build/action-mergeusr --GOARCH=$TARGETARCH) /usr/local/bin/action-mergeusr
-  ENTRYPOINT ["/usr/local/bin/action-mergeusr"]
+  COPY --platform=linux/$NATIVEARCH (+build-bookworm/action-usrmerge --GOARCH=$TARGETARCH) /usr/local/bin/action-usrmerge
+  ENTRYPOINT ["/usr/local/bin/action-usrmerge"]
   ARG VERSION=dev
-  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:${VERSION}
-  SAVE IMAGE --push ghcr.io/immutos/action-mergeusr:latest
+  SAVE IMAGE --push ghcr.io/immutos/action-usrmerge:${VERSION}-bookworm
+  SAVE IMAGE --push ghcr.io/immutos/action-usrmerge:bookworm
+
+docker-trixie:
+  FROM debian:trixie-slim
+  RUN apt update \
+    && apt install -y fakechroot \
+    && rm -rf /var/lib/apt/lists/*
+  COPY LICENSE /usr/share/doc/action-usrmerge/copyright
+  ARG NATIVEARCH
+  ARG TARGETARCH
+  COPY --platform=linux/$NATIVEARCH (+build-trixie/action-usrmerge --GOARCH=$TARGETARCH) /usr/local/bin/action-usrmerge
+  ENTRYPOINT ["/usr/local/bin/action-usrmerge"]
+  ARG VERSION=dev
+  SAVE IMAGE --push ghcr.io/immutos/action-usrmerge:${VERSION}-trixie
+  SAVE IMAGE --push ghcr.io/immutos/action-usrmerge:trixie

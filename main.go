@@ -17,11 +17,16 @@
 package main
 
 import (
-	"log/slog"
+	"log"
 	"os"
 	"path/filepath"
 
 	cp "github.com/otiai10/copy"
+)
+
+const (
+	// rootfsMountDir is the directory where the root filesystem is mounted.
+	rootfsMountDir = "/rootfs"
 )
 
 // usrMergeDirectories is the complete list of directories that can be merged into /usr.
@@ -32,37 +37,37 @@ var usrMergeDirectories = []string{"/bin", "/lib", "/lib32", "/lib64", "/libo32"
 func main() {
 	for _, dir := range usrMergeDirectories {
 		// The architecture does not have this directory.
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(rootfsMountDir, dir)); os.IsNotExist(err) {
 			continue
 		}
 
 		// The directory is already usr merged.
-		if info, err := os.Lstat(dir); err == nil && info.Mode()&os.ModeSymlink != 0 {
-			slog.Info("Directory is already usr merged", slog.String("dir", dir))
+		if info, err := os.Lstat(filepath.Join(rootfsMountDir, dir)); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			log.Println("Directory is already usr merged", dir)
 			continue
 		}
 
 		canonDir := filepath.Join("/usr", dir)
 
-		slog.Info("Merging into /usr", slog.String("dir", dir), slog.String("canonDir", canonDir))
+		log.Println("Merging into /usr", dir, canonDir)
 
-		if err := cp.Copy(dir, canonDir, cp.Options{OnSymlink: func(src string) cp.SymlinkAction {
+		if err := cp.Copy(filepath.Join(rootfsMountDir, dir), canonDir, cp.Options{OnSymlink: func(src string) cp.SymlinkAction {
 			return cp.Shallow
 		}}); err != nil {
-			slog.Error("Failed to copy directory",
-				slog.String("dir", dir), slog.String("canonDir", canonDir), slog.Any("error", err))
-			os.Exit(1)
+			log.Fatal("Failed to copy directory", dir, canonDir, err)
 		}
 
-		if err := os.RemoveAll(dir); err != nil {
-			slog.Error("Failed to remove directory", slog.String("dir", dir), slog.Any("error", err))
-			os.Exit(1)
+		if err := os.RemoveAll(filepath.Join(rootfsMountDir, dir)); err != nil {
+			log.Fatal("Failed to remove directory", dir, err)
 		}
 
 		if err := os.Symlink(canonDir, dir); err != nil {
-			slog.Error("Failed to symlink directory",
-				slog.String("dir", dir), slog.String("canonDir", canonDir), slog.Any("error", err))
-			os.Exit(1)
+			log.Fatal("Failed to symlink directory", dir, canonDir, err)
 		}
 	}
+
+	// Remove any usr-is-merged pre/postinst scripts.
+	// These are no longer needed after the usr merge.
+	_ = os.RemoveAll("/var/lib/dpkg/info/usr-is-merged.preinst")
+	_ = os.RemoveAll("/var/lib/dpkg/info/usr-is-merged.postinst")
 }

@@ -1,6 +1,6 @@
-module github.com/immutos/action-mergeusr
+module github.com/immutos/action-usrmerge
 
-go 1.22.0
+go 1.21
 
 require github.com/otiai10/copy v1.14.0
 
